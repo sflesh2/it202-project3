@@ -120,12 +120,16 @@ function drawMeteors(){
 }
 
 function isHit(){
-    let playerX = player["x"] + (playerImg.width/2); 
-    let playerY = player["y"] + (playerImg.height/2);
-    
     for(let m of meteors){
-        
+       if((player.x < (m.x + m.img.width)) &&
+          ((player.x + playerImg.width > m.x)) &&
+          (player.y < (m.y + m.img.height)) &&
+          ((player.y + playerImg.height) > m.y))
+       {
+           return true;    
+       } 
     }
+    return false;
 }
 let mTimer = 0; 
 function generateMeteors(){
@@ -143,7 +147,9 @@ function draw(){
    clear();
    updateMove();
    generateMeteors();
-   
+   if(isHit()){
+       console.log("hit");
+   }
    if(player["y"] <= 0){
        player["y"] = 0;
        moveUp = false;
