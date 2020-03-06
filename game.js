@@ -1,16 +1,16 @@
 let player = {
     "x" : 0, 
     "y": 0, 
-    "health": 100, 
     "score": 0,
     "img" :  "./ship.png",
     "inv" : false, //used for invincibility frames
-    "lives": 3
+    "lives": 3,
+    "level": 1,
 };
-
+let gameStarted = false; 
 let meteors = [];
 let benefit = [];
-
+let restart = false; 
 let mImg = ["./Meteor1.png", "./Meteor2.png", "./Meteor3.png"];
 
 let playerImg = new Image(); 
@@ -26,12 +26,29 @@ let moveDown = false;
 function newMeteor(){
     let meteor = new Object(); 
     meteor.y = 0;
-    meteor.x = Math.floor(Math.random() * c.width);; 
+    meteor.x = Math.floor(Math.random() * c.width); 
     meteor.state = 0;
     meteor.img = new Image();
     return meteor;
 }
 
+function newBenefit(isOneUp){
+    let ben = new Object(); 
+    ben.img = new Image(); 
+    if(isOneUp == true){
+        ben.type = "oneUp";
+        ben.img.src = "./oneUp.png"; 
+    }else{
+        ben.type = "points";
+        ben.img.src = "./points.png"; 
+    }
+    
+    ben.y = 0; 
+    ben.x = Math.floor(Math.random() * c.width);
+    return ben;
+    
+    
+}
 
 function updateMove(){
     if(moveLeft){
@@ -47,12 +64,25 @@ function updateMove(){
     }
     
     if(meteors.length > 0 && meteors[0].y > c.height){
-        player["score"] += 5; //gain points for each meteor passed
         meteors.shift();
     }
     
+    if(benefit.length > 0 && benefit[0].y > c.height){
+        benefit.shift();
+    }
+    
+    //every fourth level the meteors get faster
     for(let m of meteors){
-        m["y"] += 1;
+        m["y"] += 1 + Math.floor(.5 * player["level"]);
+    }
+    
+    for(let b of benefit){
+        if(b.type == "oneUp"){
+            b["y"] += 3;
+        }else{
+            b["y"] += 1;     
+        }
+        
     }
 }
 
@@ -86,6 +116,14 @@ document.addEventListener("keyup", e=>{
 
 //starts moving the player
 document.addEventListener("keydown", e=>{
+    console.log(e);
+    if(gameStarted == false){
+        if(e.key == " "){
+            console.log("Starting Game!");
+            gameStarted = true;
+            init();
+        }
+    }
     if(e.key == "a"){
         moveLeft = true; 
     }else if(e.key == "d"){
@@ -100,7 +138,7 @@ document.addEventListener("keydown", e=>{
 });
 
 let timer = 0; 
-function drawMeteors(){
+function drawObjects(){
     for(let m of meteors){
         m.img.src = mImg[m.state];
         
@@ -114,7 +152,45 @@ function drawMeteors(){
         }
        
         ctx.drawImage(m.img, m["x"], m["y"]);
+  
     }
+    
+    for(let b of benefit){
+        ctx.drawImage(b.img, b["x"], b["y"]);
+    }
+}
+
+function hasBox(){
+    let playerRadius = playerImg.width * .25; 
+    let metRadius = meteors[0].img.width*.5;
+    
+    //get the center of the sprite
+    let playerX = player.x + playerImg.width/2;
+    let playerY = player.y + playerImg.height/2; 
+    
+    //check if there is a meteor that is hitting the ship
+    for(let m in benefit){
+        let metX = benefit[m].x + benefit[m].img.width/2; 
+        let metY = benefit[m].y + benefit[m].img.height/2; 
+        
+        let dist = Math.sqrt(Math.pow((metX - playerX), 2) + Math.pow((metY - playerY), 2));
+        if(dist < (playerRadius + metRadius)){
+            if(benefit[m].type == "points"){
+                player["score"] += 100;
+            }else if(benefit[m].type == "oneUp"){
+                player["lives"] += 1;
+                player["score"] += 100;
+            }
+            
+            //increment the level if the score is a multiple of 500 (every 5 boxes is a new level)
+            if(player["score"] % 500 == 0){
+                benefit.push(newBenefit(true));
+                player["level"] += 1;
+            }
+            return m; 
+        }
+    }
+    return -1;
 }
 
 function isHit(){
@@ -141,41 +217,23 @@ function isHit(){
 }
 
 let mTimer = 0; 
-function generateMeteors(){
+function generateObjects(){
     mTimer += 1; 
-    if(mTimer % 40 == 0){
+    
+    if(mTimer % (35) == 0){
       if(meteors.length < 50){
         meteors.push(newMeteor());
       } 
-      mTimer = 0;
+    }
+    
+    if(mTimer % 500 == 0){
+        benefit.push(newBenefit());
+        mTimer = 0;
     }
     
 }
 
-let invTimer = 0; 
-
-function draw(){
-   clear();
-   updateMove();
-   generateMeteors();
-   
-    //this checks if a player is hit.
-    //if they are hit it gives them a flashing animation 
-   if(player["inv"] == false){
-       player["inv"] = isHit(); 
-       if(player["inv"] == true){
-           playerImg.src = "./clearShip.png";
-           invTimer = 200; 
-       }
-   }else{
-       invTimer -= 1; 
-       if(invTimer == 0){
-           player["inv"] = false; 
-           playerImg.src = "./ship.png"
-       }
-   }
-   
-    
+function checkBounds(){
    if(player["y"] <= 0){
        player["y"] = 0;
        moveUp = false;
@@ -194,7 +252,62 @@ function draw(){
    if(player["x"] + playerImg.width >= c.width){
        player["x"] = c.width - playerImg.width;
        moveRight = false;
+   } 
+}
+
+function checkHitMeteor(){
+    //this checks if a player is hit.
+    //if they are hit it gives them a flashing animation 
+   if(player["inv"] == false){
+       player["inv"] = isHit(); 
+       if(player["inv"] == true){
+           playerImg.src = "./clearShip.png";
+           invTimer = 200; 
+       }
+   }else{
+       invTimer -= 1; 
+       if(invTimer == 0){
+           player["inv"] = false; 
+           playerImg.src = "./ship.png"
+       }
    }
+}
+
+function checkHitBenefit(){
+    let val = hasBox(); 
+    
+    if(val != -1){
+        benefit.splice(val, 1);
+    }
+}
+
+
+function gameOver(){
+    let msg = "Game Over";
+    ctx.fillText(msg, c.width * .5, c.height *.5);
+    msg = "(click anywhere for menu)";
+    ctx.fillText(msg, c.width*.5, c.height *.5 + 10);
+    
+    document.addEventListener("mousedown", e=>{
+       location.reload();
+    });
+}
+
+let invTimer = 0; 
+function draw(){
+   if(player["lives"] == 0){
+       gameOver();
+       return;
+   }
+   clear();
+   updateMove();
+   generateObjects();
+   
+   checkHitMeteor(); 
+   checkHitBenefit();
+   
+   //ensures that the player doesn't go off screen
+   checkBounds();
     
    //an attempt to stop the image from stretching. not very successful
    if(playerImg.width>playerImg.height){
@@ -205,7 +318,7 @@ function draw(){
         c.height = 300;
    } 
 
-   drawMeteors();
+   drawObjects();
    ctx.drawImage(playerImg,player["x"],player["y"]);
    
    let msg = "Score: " + player["score"];
@@ -214,10 +327,27 @@ function draw(){
    
    let liveMsg = "Lives: " + player["lives"];
    ctx.fillText(liveMsg, 10, 20);
+    
+   let levelMsg = "Level: " + player["level"];
+    ctx.fillText(levelMsg, 10, 30);
    
    window.requestAnimationFrame(draw);
 }
 
-init();
+let x = c.width*.3; 
+let y = c.height*.3;
+ctx.fillText("Welcome To Meteor Dodge!",x, y - 10);
+ctx.fillText("-use WASD to move", x, y+ 10);
+ctx.fillText("-Avoid meteors. They take away lives", x, y+20);
+ctx.fillText("-Green boxes increase your score", x, y+30);
+ctx.fillText("-Red boxes provide lives", x, y+ 40); 
+ctx.fillText("-Every two levels the difficulty increases", x, y+50);
+ctx.fillText("-Levels increase every 500 points", x, y+60);
+ctx.fillText("Good Luck!", x, y+70);
+ctx.fillText("(type [space] to begin)", x, y+80);
+
+
+
+
 
 
