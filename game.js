@@ -5,9 +5,11 @@ let player = {
     "score": 0,
     "img" :  "./ship.png",
     "inv" : false, //used for invincibility frames
+    "lives": 3
 };
 
 let meteors = [];
+let benefit = [];
 
 let mImg = ["./Meteor1.png", "./Meteor2.png", "./Meteor3.png"];
 
@@ -44,7 +46,7 @@ function updateMove(){
         player["y"] += 1; 
     }
     
-    if(meteors[0].y > c.height){
+    if(meteors.length > 0 && meteors[0].y > c.height){
         player["score"] += 5; //gain points for each meteor passed
         meteors.shift();
     }
@@ -54,15 +56,12 @@ function updateMove(){
     }
 }
 
-playerImg.onload = ()=>{
-    player["x"] = c.width * .5; 
-    player["y"] = c.height * .5;      
-}
 
 //set up the images for the player and the harm object and kick off the animation 
 function init(){
     playerImg.src = player["img"];
-    
+    player["x"] = c.width * .5; 
+    player["y"] = c.height * .5;    
     meteors.push(newMeteor());   //todo remove this. this is a test
     
     window.requestAnimationFrame(draw);
@@ -87,7 +86,6 @@ document.addEventListener("keyup", e=>{
 
 //starts moving the player
 document.addEventListener("keydown", e=>{
-    console.log(e);
     if(e.key == "a"){
         moveLeft = true; 
     }else if(e.key == "d"){
@@ -120,17 +118,28 @@ function drawMeteors(){
 }
 
 function isHit(){
+    let playerRadius = playerImg.width * .25; 
+    let metRadius = meteors[0].img.width*.5;
+    
+    //get the center of the sprite
+    let playerX = player.x + playerImg.width/2;
+    let playerY = player.y + playerImg.height/2; 
+    
+    //check if there is a meteor that is hitting the ship
     for(let m of meteors){
-       if((player.x < (m.x + m.img.width)) &&
-          ((player.x + playerImg.width > m.x)) &&
-          (player.y < (m.y + m.img.height)) &&
-          ((player.y + playerImg.height) > m.y))
-       {
-           return true;    
-       } 
+        let metX = m.x + m.img.width/2; 
+        let metY = m.y + m.img.height/2; 
+        
+        let dist = Math.sqrt(Math.pow((metX - playerX), 2) + Math.pow((metY - playerY), 2));
+        if(dist < (playerRadius + metRadius)){
+            player["lives"] -= 1; 
+            return true; 
+        }
     }
     return false;
+    
 }
+
 let mTimer = 0; 
 function generateMeteors(){
     mTimer += 1; 
@@ -143,13 +152,30 @@ function generateMeteors(){
     
 }
 
+let invTimer = 0; 
+
 function draw(){
    clear();
    updateMove();
    generateMeteors();
-   if(isHit()){
-       console.log("hit");
+   
+    //this checks if a player is hit.
+    //if they are hit it gives them a flashing animation 
+   if(player["inv"] == false){
+       player["inv"] = isHit(); 
+       if(player["inv"] == true){
+           playerImg.src = "./clearShip.png";
+           invTimer = 200; 
+       }
+   }else{
+       invTimer -= 1; 
+       if(invTimer == 0){
+           player["inv"] = false; 
+           playerImg.src = "./ship.png"
+       }
    }
+   
+    
    if(player["y"] <= 0){
        player["y"] = 0;
        moveUp = false;
@@ -180,10 +206,15 @@ function draw(){
    } 
 
    drawMeteors();
-   ctx.drawImage(playerImg,player["x"],player["y"], playerImg.width, playerImg.height);
+   ctx.drawImage(playerImg,player["x"],player["y"]);
+   
    let msg = "Score: " + player["score"];
-    ctx.fillText(msg, 10, 10);
-    ctx.font = "25px Verdana";
+   ctx.fillText(msg, 10, 10);
+   
+   
+   let liveMsg = "Lives: " + player["lives"];
+   ctx.fillText(liveMsg, 10, 20);
+   
    window.requestAnimationFrame(draw);
 }
 
