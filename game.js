@@ -116,10 +116,8 @@ document.addEventListener("keyup", e=>{
 
 //starts moving the player
 document.addEventListener("keydown", e=>{
-    console.log(e);
     if(gameStarted == false){
         if(e.key == " "){
-            console.log("Starting Game!");
             gameStarted = true;
             init();
         }
